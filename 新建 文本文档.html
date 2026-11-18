@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLP 参数学习与可视化 | AI作业2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui}
+body{max-width:1100px;margin:2rem auto;padding:0 1rem;background:#f7f8fa}
+.card{background:#fff;padding:1.5rem;border-radius:12px;margin-bottom:1rem;box-shadow:0 2px 8px #00000010}
+.row{display:flex;gap:1rem;flex-wrap:wrap}
+.col{flex:1;min-width:320px}
+button{padding:8px 16px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;margin:4px}
+button:disabled{background:#94a3b8}
+input{padding:6px;width:120px;border:1px solid #ccc;border-radius:4px}
+canvas{border:1px solid #eee;border-radius:8px;background:#fff}
+pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow-x:auto;font-size:13px}
+</style>
+</head>
+<body>
+<h1>作业2：MLP学习参数的实现和可视化</h1>
+<div class="card">
+<h3>实验说明</h3>
+<p>数据集：XOR异或问题；网络：2输入-4隐藏-1输出；激活函数Sigmoid；优化器SGD；损失MSE</p>
+<div class="row">
+<div>学习率 lr: <input id="lr" value="0.5"></div>
+<div>迭代轮数 epoch: <input id="epoch" value="3000"></div>
+<div><button id="startBtn">开始训练</button></div>
+</div>
+</div>
+<div class="row">
+<div class="col card">
+<h4>Loss曲线</h4>
+<canvas id="lossChart" height="220"></canvas>
+</div>
+<div class="col card">
+<h4>决策边界</h4>
+<canvas id="boundaryCanvas" width="320" height="280"></canvas>
+</div>
+</div>
+<div class="row">
+<div class="col card">
+<h4>权重W1热力图（输入→隐藏）</h4>
+<canvas id="w1Canvas" width="320" height="180"></canvas>
+</div>
+<div class="col card">
+<h4>权重W2热力图（隐藏→输出）</h4>
+<canvas id="w2Canvas" width="320" height="180"></canvas>
+</div>
+</div>
+<div class="card">
+<h3>核心代码：前向传播 & 反向传播 SGD</h3>
+<pre>
+// 前向传播
+function forward(x, W1, b1, W2, b2){
+    const h = sigmoid(matMul(x,W1).add(b1));
+    const y = sigmoid(matMul(h,W2).add(b2));
+    return {h,y};
+}
+// 反向传播、梯度更新（SGD）
+function back(x, y_true, cache, W1,b1,W2,b2,lr){
+    const {h,y}=cache;
+    const dy = y.sub(y_true).mul(2);
+    const dW2 = matMul(h.T(), dy.mul(sigmoidGrad(y)));
+    const db2 = dy.mul(sigmoidGrad(y));
+    const dh = matMul(dy.mul(sigmoidGrad(y)), W2.T());
+    const dW1 = matMul(x.T(), dh.mul(sigmoidGrad(h)));
+    const db1 = dh.mul(sigmoidGrad(h));
+    // 参数更新
+    W1 = W1.sub(dW1.mul(lr));
+    b1 = b1.sub(db1.mul(lr));
+    W2 = W2.sub(dW2.mul(lr));
+    b2 = b2.sub(db2.mul(lr));
+    return {W1,b1,W2,b2};
+}
+</pre>
+</div>
+<div class="card">
+<h3>结果分析</h3>
+<p>1. 随着训练迭代，loss持续下降，模型逐步拟合XOR非线性；<br>
+2. 权重热力图变化：参数从随机初始化，逐步收敛到合适分布；<br>
+3. 学习率太大容易震荡不收敛，太小收敛速度很慢。</p>
+</div>
+
+<script>
+// 简易矩阵工具
+class Mat{
+    constructor(r,c,data=null){
+        this.r=r;this.c=c;
+        this.data=data||Array(r*c).fill(0);
+    }
+    get(i,j){return this.data[i*this.c+j]}
+    set(i,j,v){this.data[i*this.c+j]=v}
+    add(B){
+        const m=new Mat(this.r,this.c);
+        for(let i=0;i<this.r*this.c;i++)m.data[i]=this.data[i]+B.data[i];
+        return m;
+    }
+    sub(B){
+        const m=new Mat(this.r,this.c);
+        for(let i=0;i<this.r*this.c;i++)m.data[i]=this.data[i]-B.data[i];
+        return m;
+    }
+    mul(s){
+        const m=new Mat(this.r,this.c);
+        for(let i=0;i<this.r*this.c;i++)m.data[i]=this.data[i]*s;
+        return m;
+    }
+    T(){
+        const m=new Mat(this.c,this.r);
+        for(let i=0;i<this.r;i++)
+            for(let j=0;j<this.c;j++)m.set(j,i,this.get(i,j));
+        return m;
+    }
+}
+function matMul(A,B){
+    const m=new Mat(A.r,B.c);
+    for(let i=0;i<A.r;i++)
+        for(let k=0;k<A.c;k++){
+            const av=A.get(i,k);
+            for(let j=0;j<B.c;j++)m.set(i,j,m.get(i,j)+av*B.get(k,j));
+        }
+    return m;
+}
+function sigmoid(m){
+    const res=new Mat(m.r,m.c);
+    for(let i=0;i<m.r*m.c;i++)res.data[i]=1/(1+Math.exp(-m.data[i]));
+    return res;
+}
+function sigmoidGrad(m){
+    const res=new Mat(m.r,m.c);
+    for(let i=0;i<m.r*m.c;i++){
+        const v=m.data[i];res.data[i]=v*(1-v);
+    }
+    return res;
+}
+// XOR数据集
+const X = new Mat(4,2,[0,0, 0,1, 1,0, 1,1]);
+const Y = new Mat(4,1,[0,1,1,0]);
+let lossChart;
+const startBtn=document.getElementById('startBtn');
+startBtn.onclick=async ()=>{
+    startBtn.disabled=true;
+    const lr=Number(document.getElementById('lr').value);
+    const epochTotal=Number(document.getElementById('epoch').value);
+    // 参数初始化
+    let W1=new Mat(2,4);
+    let b1=new Mat(1,4);
+    let W2=new Mat(4,1);
+    let b2=new Mat(1,1);
+    for(let i=0;i<8;i++)W1.data[i]=(Math.random()-0.5)*2;
+    for(let i=0;i<4;i++)b1.data[i]=(Math.random()-0.5)*2;
+    for(let i=0;i<4;i++)W2.data[i]=(Math.random()-0.5)*2;
+    b2.data[0]=(Math.random()-0.5)*2;
+    const lossList=[];
+    if(lossChart)lossChart.destroy();
+    const ctx=document.getElementById('lossChart').getContext('2d');
+    lossChart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'Loss',data:lossList,borderColor:'#ef4444',fill:false}]},options:{responsive:true}});
+    function drawHeatmap(canvas, mat){
+        const c=canvas.getContext('2d');
+        const w=canvas.width,h=canvas.height;
+        c.fillStyle="#fff";c.fillRect(0,0,w,h);
+        const mr=mat.r,mc=mat.c;
+        for(let i=0;i<mr;i++)for(let j=0;j<mc;j++){
+            const v=mat.get(i,j);
+            const t=Math.max(0,Math.min(1,(v+2)/4));
+            c.fillStyle=`rgb(${255*t},${100},${255*(1-t)})`;
+            c.fillRect(j*(w/mc),i*(h/mr),w/mc-2,h/mr-2);
+        }
+    }
+    function drawBoundary(W1,b1,W2,b2){
+        const canvas=document.getElementById('boundaryCanvas');
+        const c=canvas.getContext('2d');
+        const w=canvas.width,h=canvas.height;
+        const step=8;
+        for(let px=0;px<w;px+=step){
+            for(let py=0;py<h;py+=step){
+                const x0=px/w,x1=py/h;
+                const x=new Mat(1,2,[x0,x1]);
+                const cache=forward(x,W1,b1,W2,b2);
+                const val=cache.y.data[0];
+                c.fillStyle=`rgb(${val*255},${val*220},255)`;
+                c.fillRect(px,py,step,step);
+            }
+        }
+        // 样本点
+        const pts=[[0,0,'#000'],[0,1,'#f00'],[1,0,'#f00'],[1,1,'#000']];
+        for(const [x,y,color] of pts){
+            c.beginPath();c.arc(x*w,y*h,6,0,Math.PI*2);c.fillStyle=color;c.fill();
+        }
+    }
+    function forward(x,W1,b1,W2,b2){
+        const h=sigmoid(matMul(x,W1).add(b1));
+        const y=sigmoid(matMul(h,W2).add(b2));
+        return {h,y};
+    }
+    drawHeatmap(document.getElementById('w1Canvas'),W1);
+    drawHeatmap(document.getElementById('w2Canvas'),W2);
+    drawBoundary(W1,b1,W2,b2);
+    for(let e=0;e<epochTotal;e++){
+        const cache=forward(X,W1,b1,W2,b2);
+        let loss=0;
+        for(let i=0;i<4;i++)loss+=Math.pow(cache.y.get(i,0)-Y.get(i,0),2);
+        loss/=4;
+        lossList.push(loss);
+        lossChart.data.labels.push(e);
+        lossChart.update('none');
+        // 反向传播
+        const dy=cache.y.sub(Y).mul(2);
+        const sigY=cache.y;
+        const gradY=sigY.sub(matMul(sigY,sigY));
+        const dW2=matMul(cache.h.T(), dy.mul(gradY));
+        const db2=dy.mul(gradY);
+        const dh=matMul(dy.mul(gradY), W2.T());
+        const sigH=cache.h;
+        const gradH=sigH.sub(matMul(sigH,sigH));
+        const dW1=matMul(X.T(), dh.mul(gradH));
+        const db1=dh.mul(gradH);
+        W1=W1.sub(dW1.mul(lr));
+        b1=b1.sub(db1.mul(lr));
+        W2=W2.sub(dW2.mul(lr));
+        b2=b2.sub(db2.mul(lr));
+        if(e%300===0){
+            drawHeatmap(document.getElementById('w1Canvas'),W1);
+            drawHeatmap(document.getElementById('w2Canvas'),W2);
+            drawBoundary(W1,b1,W2,b2);
+            await new Promise(r=>setTimeout(r,10));
+        }
+    }
+    drawHeatmap(document.getElementById('w1Canvas'),W1);
+    drawHeatmap(document.getElementById('w2Canvas'),W2);
+    drawBoundary(W1,b1,W2,b2);
+    startBtn.disabled=false;
+};
+</script>
+</body>
+</html>
