@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MLP参数学习与可视化 XOR</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui}
+.container{max-width:1100px;margin:15px auto;padding:10px}
+.panel{background:#f4f7fa;padding:16px;border-radius:8px;margin-bottom:15px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+canvas{width:100%;height:320px;background:#fff}
+input{width:120px;padding:6px;font-size:16px}
+button{padding:7px 16px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="panel">
+        <h3>实验说明：XOR异或问题｜2输入-4隐藏-1输出｜Sigmoid｜SGD｜MSE</h3>
+        <div>
+            学习率 lr: <input id="lr" value="0.5" type="number" step="0.01">
+            &nbsp;&nbsp;迭代轮数 epoch: <input id="epoch" value="3000" type="number">
+            &nbsp;&nbsp;<button onclick="train()">开始训练</button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="panel">
+            <h4>Loss曲线</h4>
+            <canvas id="lossChart"></canvas>
+        </div>
+        <div class="panel">
+            <h4>决策边界</h4>
+            <canvas id="boundaryCanvas"></canvas>
+        </div>
+    </div>
+    <div class="row">
+        <div class="panel">
+            <h4>权重W1热力图（输入→隐藏）</h4>
+            <canvas id="w1Canvas"></canvas>
+        </div>
+        <div class="panel">
+            <h4>权重W2热力图（隐藏→输出）</h4>
+        </div>
+    </div>
+</div>
+
+<script>
+// XOR数据集
+const X = [[0,0],[0,1],[1,0],[1,1]]
+const Y = [[0],[1],[1],[0]]
+let W1,b1,W2,b2;
+let lossList = [];
+
+// Sigmoid
+function sigmoid(x){
+    return 1/(1+Math.exp(-x))
+}
+function sigmoidDeriv(x){
+    return x*(1-x)
+}
+
+// 初始化权重
+function initNet(){
+    W1 = Array.from({length:2},()=>Array(4).fill(0).map(()=>Math.random()*2-1))
+    b1 = Array(4).fill(0).map(()=>Math.random()*2-1)
+    W2 = Array.from({length:4},()=>Array(1).fill(0).map(()=>Math.random()*2-1))
+    b2 = [Math.random()*2-1]
+    lossList = []
+}
+
+// 前向传播
+function forward(x){
+    let z1 = [
+        x[0]*W1[0][0]+x[1]*W1[1][0]+b1[0],
+        x[0]*W1[0][1]+x[1]*W1[1][1]+b1[1],
+        x[0]*W1[0][2]+x[1]*W1[1][2]+b1[2],
+        x[0]*W1[0][3]+x[1]*W1[1][3]+b1[3],
+    ]
+    let a1 = z1.map(v=>sigmoid(v))
+    let z2 = a1[0]*W2[0][0]+a1[1]*W2[1][0]+a1[2]*W2[2][0]+a1[3]*W2[3][0]+b2[0]
+    let a2 = sigmoid(z2)
+    return {a1,a2}
+}
+
+// SGD训练
+function train(){
+    initNet()
+    const lr = parseFloat(document.getElementById('lr').value)
+    const epoch = parseInt(document.getElementById('epoch').value)
+    for(let e=0;e<epoch;e++){
+        let totalLoss = 0
+        for(let i=0;i<4;i++){
+            const x = X[i]; const y = Y[i]
+            const {a1,a2} = forward(x)
+            const err = a2 - y[0]
+            totalLoss += err*err
+            // 输出层梯度
+            const d2 = err * sigmoidDeriv(a2)
+            // 隐藏层梯度
+            const d1 = [
+                d2 * W2[0][0] * sigmoidDeriv(a1[0]),
+                d2 * W2[1][0] * sigmoidDeriv(a1[1]),
+                d2 * W2[2][0] * sigmoidDeriv(a1[2]),
+                d2 * W2[3][0] * sigmoidDeriv(a1[3]),
+            ]
+            // 更新W2 b2
+            for(let h=0;h<4;h++) W2[h][0] -= lr * d2 * a1[h]
+            b2[0] -= lr * d2
+            // 更新W1 b1
+            for(let inp=0;inp<2;inp++){
+                for(let h=0;h<4;h++){
+                    W1[inp][h] -= lr * d1[h] * x[inp]
+                }
+            }
+            for(let h=0;h<4;h++) b1[h] -= lr * d1[h]
+        }
+        lossList.push(totalLoss/4)
+    }
+    drawLoss()
+    drawBoundary()
+    drawHeatmap(W1, document.getElementById('w1Canvas'))
+    drawHeatmap(W2, document.getElementById('w2Canvas'))
+}
+
+// 绘制loss曲线
+let lossChart;
+function drawLoss(){
+    const ctx = document.getElementById('lossChart').getContext('2d')
+    if(lossChart) lossChart.destroy()
+    lossChart = new Chart(ctx,{
+        type:'line',
+        data:{
+            labels:lossList.map((_,i)=>i),
+            datasets:[{label:'Loss',data:lossList,borderColor:'#ef4444',fill:false}]
+        },
+        options:{scales:{y:{min:0,max:1}}}
+    })
+}
+
+// 绘制决策边界
+function drawBoundary(){
+    const canvas = document.getElementById('boundaryCanvas')
+    const ctx = canvas.getContext('2d')
+    canvas.width = 400
+    canvas.height = 320
+    const w = canvas.width, h = canvas.height
+    const res = 50
+    for(let xi=0;xi<res;xi++){
+        for(let yi=0;yi<res;yi++){
+            let x0 = xi/res, x1 = yi/res
+    
