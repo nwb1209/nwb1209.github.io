@@ -2,157 +2,286 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>MLP奶茶甜度预测｜完整版参数可视化</title>
+<title>MLP 生活实例：奶茶甜度预测（完整版）</title>
 <style>
-*{box-sizing:border-box;font-family:system-ui}
-body{padding:20px;max-width:1100px;margin:0 auto}
-h2{color:#222}
-.info{background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:16px;line-height:1.6}
-.ctrl{background:#f6f7f9;padding:12px;border-radius:8px;margin-bottom:16px;line-height:1.8}
-button{padding:7px 14px;background:#2b78e4;color:#fff;border:none;border-radius:4px;cursor:pointer;margin:0 4px}
-#resetBtn{background:#dd4444}
-input[type="range"]{width:200px;margin:0 8px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card{border:1px solid #ccc;padding:12px;border-radius:8px}
-canvas{width:100%;height:220px;background:#fafafa}
-.paramBox{background:#f4f4f4;padding:10px;border-radius:6px;margin-top:10px;font-size:14px;max-height:160px;overflow-y:auto}
-.tip{font-size:13px;color:#666}
+*{box-sizing:border-box;font-family:system-ui, sans-serif;}
+body{padding:20px;max-width:1100px;margin:0 auto;background:#f7f8fa;}
+.title{background:#ffe699;padding:12px 16px;border-radius:8px;font-size:20px;font-weight:bold;margin-bottom:16px;}
+.info-box{background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;margin-bottom:16px;line-height:1.7;}
+.ctrl{margin:10px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+button{padding:8px 16px;border:none;border-radius:6px;color:#fff;font-size:15px;cursor:pointer;}
+#trainBtn{background:#2b78e4;}
+#resetBtn{background:#dd3333;}
+.slider-row{margin:8px 0;display:flex;align-items:center;gap:8px;}
+input[type="range"]{width:220px;}
+canvas{border:1px solid #ccc;background:#fff;border-radius:6px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+.cell{padding:8px;}
 </style>
 </head>
 <body>
-<h2>MLP 生活实例：奶茶甜度预测（完整版）</h2>
-<div class="info">
-<b>任务说明：</b>输入【糖量、奶量】，MLP学习二者和甜度的非线性关系<br>
-<b>网络结构：</b>输入层2 → 隐藏层4神经元（Sigmoid） → 输出层1（甜度0~1）<br>
-<b>训练方式：</b>梯度下降 + 反向传播；损失：均方误差MSE；回归任务
+<div class="title">MLP 生活实例：奶茶甜度预测（完整版）</div>
+<div class="info-box">
+任务说明：输入【糖量、奶量】，MLP学习二者和甜度的非线性关系<br>
+网络结构：输入2 → 隐藏层4神经元（Sigmoid） → 输出层1（甜度0~1）<br>
+训练方式：梯度下降 + 反向传播；损失：均方误差MSE；回归任务
 </div>
 
 <div class="ctrl">
-  <button onclick="startTrain()">开始训练</button>
-  <button id="resetBtn" onclick="resetAll()">重置模型</button>
-  <br>
-  糖量：<input type="range" id="sugar" min="0" max="1" step="0.01" value="0.5" oninput="predictNow()">
-  <span id="sugarVal">0.50</span>
-  <br>
-  奶量：<input type="range" id="milk" min="0" max="1" step="0.01" value="0.5" oninput="predictNow()">
-  <span id="milkVal">0.50</span>
-  <br>
-  🍬 预测甜度：<span id="res">等待训练</span>（0=不甜，1=非常甜）
-  <br>
-  <span class="tip">热力图上黑色圆点是训练样本</span>
+<button id="trainBtn">开始训练</button>
+<button id="resetBtn">重置模型</button>
 </div>
+<div class="slider-row">
+<span>糖量：</span>
+<input type="range" id="sugar" min="0" max="1" step="0.01" value="0.5">
+<span id="sugarVal">0.50</span>
+</div>
+<div class="slider-row">
+<span>奶量：</span>
+<input type="range" id="milk" min="0" max="1" step="0.01" value="0.5">
+<span id="milkVal">0.50</span>
+</div>
+<div>🍬 预测甜度：<span id="predText">等待训练（0=不甜，1=非常甜）</span></div>
+<div style="font-size:13px;color:#666;margin:4px 0;">热力图上黑色圆点是训练样本</div>
 
 <div class="grid">
-  <div class="card">
-    <div>Loss下降曲线</div>
-    <canvas id="lossCanvas" width="480" height="220"></canvas>
-  </div>
-  <div class="card">
-    <div>甜度热力图（横轴：糖量｜纵轴：奶量）</div>
-    <canvas id="heatCanvas" width="480" height="220"></canvas>
-  </div>
-  <div class="card">
-    <div>W1 权重热力图（输入→隐藏层）</div>
-    <canvas id="w1Canvas" width="480" height="220"></canvas>
-  </div>
-  <div class="card">
-    <div>W2 权重热力图（隐藏→输出层）</div>
-    <canvas id="w2Canvas" width="480" height="220"></canvas>
-  </div>
+<div class="cell">
+<div>Loss下降曲线</div>
+<canvas id="lossCanvas" width="500" height="240"></canvas>
 </div>
-
-<div class="paramBox">
-  <b>训练参数实时更新（W1、b1、W2、b2）：</b>
-  <div id="paramText">未开始训练</div>
+<div class="cell">
+<div>甜度热力图（横轴：糖量｜纵轴：奶量）</div>
+<canvas id="heatCanvas" width="500" height="240"></canvas>
+</div>
+<div class="cell">
+<div>W1 权重热力图（输入→隐藏层）</div>
+<canvas id="w1Canvas" width="500" height="240"></canvas>
+</div>
+<div class="cell">
+<div>W2 权重热力图（隐藏→输出层）</div>
+<canvas id="w2Canvas" width="500" height="240"></canvas>
+</div>
 </div>
 
 <script>
-// 训练数据集：[糖量,奶量] → 甜度 0~1
-const trainData = [
-  {x:[0.1,0.8], y:0.10},
-  {x:[0.9,0.2], y:0.95},
-  {x:[0.8,0.7], y:0.45},
-  {x:[0.2,0.1], y:0.30},
-  {x:[0.9,0.9], y:0.35},
-  {x:[0.5,0.2], y:0.70},
-  {x:[0.3,0.6], y:0.25},
-  {x:[0.7,0.3], y:0.82},
-]
-let W1,b1,W2,b2
-let lossList = []
-const hiddenNum = 4
-const lr = 0.4
-const totalEpoch = 4000
+// 画布
+const lossCanvas = document.getElementById('lossCanvas');
+const lossCtx = lossCanvas.getContext('2d');
+const heatCanvas = document.getElementById('heatCanvas');
+const heatCtx = heatCanvas.getContext('2d');
+const w1Canvas = document.getElementById('w1Canvas');
+const w1Ctx = w1Canvas.getContext('2d');
+const w2Canvas = document.getElementById('w2Canvas');
+const w2Ctx = w2Canvas.getContext('2d');
 
-// 激活函数
-function sigmoid(x){ return 1/(1+Math.exp(-x)) }
-function dsigmoid(y){ return y*(1-y) }
+// DOM
+const trainBtn = document.getElementById('trainBtn');
+const resetBtn = document.getElementById('resetBtn');
+const sugarSlider = document.getElementById('sugar');
+const milkSlider = document.getElementById('milk');
+const sugarVal = document.getElementById('sugarVal');
+const milkVal = document.getElementById('milkVal');
+const predText = document.getElementById('predText');
+
+// 数据集（糖，奶，甜度0~1）
+const dataset = [
+    [0.1,0.1,0.05],
+    [0.2,0.15,0.12],
+    [0.3,0.2,0.22],
+    [0.4,0.3,0.35],
+    [0.5,0.5,0.52],
+    [0.6,0.55,0.63],
+    [0.7,0.65,0.76],
+    [0.85,0.75,0.88],
+    [0.9,0.9,0.96]
+];
+
+// 网络参数：2输入，隐藏4神经元
+let W1, b1, W2, b2;
+let lossList = [];
+const lr = 0.08;
+const epochTotal = 1800;
+let trained = false;
+
+// sigmoid
+function sigmoid(x){
+    return 1/(1+Math.exp(-x));
+}
+// sigmoid导数
+function dSigmoid(x){
+    const s = sigmoid(x);
+    return s*(1-s);
+}
 
 // 初始化权重
-function init(){
-  W1 = Array(2).fill().map(()=>Array(hiddenNum).fill().map(()=>Math.random()*2-1))
-  b1 = Array(hiddenNum).fill().map(()=>Math.random()*2-1)
-  W2 = Array(hiddenNum).fill().map(()=>[Math.random()*2-1])
-  b2 = [Math.random()*2-1]
-  lossList = []
-  document.getElementById('paramText').innerText = "初始化完成，等待训练"
+function initNet(){
+    W1 = [
+        [Math.random()*2-1, Math.random()*2-1],
+        [Math.random()*2-1, Math.random()*2-1],
+        [Math.random()*2-1, Math.random()*2-1],
+        [Math.random()*2-1, Math.random()*2-1]
+    ];
+    b1 = [0,0,0,0];
+    W2 = [Math.random()*2-1, Math.random()*2-1, Math.random()*2-1, Math.random()*2-1];
+    b2 = 0;
+    lossList = [];
+    trained = false;
+    predText.innerText = "等待训练（0=不甜，1=非常甜）";
+    clearAllCanvas();
 }
 
 // 前向传播
-function forward(x){
-  let z1 = [
-    x[0]*W1[0][0] + x[1]*W1[1][0] + b1[0],
-    x[0]*W1[0][1] + x[1]*W1[1][1] + b1[1],
-    x[0]*W1[0][2] + x[1]*W1[1][2] + b1[2],
-    x[0]*W1[0][3] + x[1]*W1[1][3] + b1[3]
-  ]
-  let a1 = z1.map(sigmoid)
-  let z2 = a1[0]*W2[0][0] + a1[1]*W2[1][0] + a1[2]*W2[2][0] + a1[3]*W2[3][0] + b2[0]
-  let sweet = sigmoid(z2)
-  return {a1, sweet, z2}
+function forward(x1,x2){
+    let h = [];
+    for(let i=0;i<4;i++){
+        let z = W1[i][0]*x1 + W1[i][1]*x2 + b1[i];
+        h.push(sigmoid(z));
+    }
+    let out = 0;
+    for(let i=0;i<4;i++) out += h[i] * W2[i];
+    out += b2;
+    out = sigmoid(out);
+    return {h,out};
 }
 
 // 训练
-async function startTrain(){
-  init()
-  for(let e=0;e<totalEpoch;e++){
-    let totalLoss = 0
-    for(let item of trainData){
-      let x = item.x
-      let yTrue = item.y
-      let {a1, sweet, z2} = forward(x)
-      let err = sweet - yTrue
-      totalLoss += err*err
-      // 反向传播
-      let s = sigmoid(z2)
-      let d2 = err * dsigmoid(s)
-      for(let j=0;j<hiddenNum;j++){
-        W2[j][0] -= lr * d2 * a1[j]
-      }
-      b2[0] -= lr * d2
-      let d1 = []
-      for(let j=0;j<hiddenNum;j++){
-        d1[j] = d2 * W2[j][0] * dsigmoid(a1[j])
-      }
-      W1[0][0] -= lr*d1[0]*x[0]
-      W1[1][0] -= lr*d1[0]*x[1]
-      W1[0][1] -= lr*d1[1]*x[0]
-      W1[1][1] -= lr*d1[1]*x[1]
-      W1[0][2] -= lr*d1[2]*x[0]
-      W1[1][2] -= lr*d1[2]*x[1]
-      W1[0][3] -= lr*d1[3]*x[0]
-      W1[1][3] -= lr*d1[3]*x[1]
-      b1[0] -= lr*d1[0]
-      b1[1] -= lr*d1[1]
-      b1[2] -= lr*d1[2]
-      b1[3] -= lr*d1[3]
+function train(){
+    initNet();
+    for(let e=0;e<epochTotal;e++){
+        let lossSum = 0;
+        for(let d of dataset){
+            let x1 = d[0], x2 = d[1], y = d[2];
+            let {h,out} = forward(x1,x2);
+            let err = out - y;
+            lossSum+=err*err;
+            // 输出层梯度
+            const dOut = 2 * err * dSigmoid(out);
+            // W2 b2 更新
+            for(let i=0;i<4;i++){
+                W2[i] -= lr * dOut * h[i];
+            }
+            b2 -= lr * dOut;
+
+            // 隐藏层梯度
+            for(let i=0;i<4;i++){
+                const dh = dOut * W2[i] * dSigmoid(h[i]);
+                W1[i][0] -= lr * dh * x1;
+                W1[i][1] -= lr * dh * x2;
+                b1[i] -= lr * dh;
+            }
+        }
+        lossList.push(lossSum / dataset.length);
     }
-    lossList.push(totalLoss / trainData.length)
-    if(e%80===0){
-      drawAll()
-      showParam(e)
-      await sleep(5)
+    trained = true;
+    drawLoss();
+    drawHeat();
+    drawW1();
+    drawW2();
+    runPredict();
+}
+
+// 绘制loss曲线
+function drawLoss(){
+    lossCtx.clearRect(0,0,lossCanvas.width,lossCanvas.height);
+    lossCtx.beginPath();
+    lossCtx.strokeStyle="#2b78e4";
+    lossCtx.lineWidth=2;
+    for(let i=0;i<lossList.length;i++){
+        const xx = i / lossList.length * lossCanvas.width;
+        const yy = lossCanvas.height - lossList[i] * 280;
+        if(i===0) lossCtx.moveTo(xx,yy);
+        else lossCtx.lineTo(xx,yy);
     }
-  }
-  drawAll()
-  
+    lossCtx.stroke();
+}
+
+// 甜度热力图
+function drawHeat(){
+    const w = heatCanvas.width;
+    const h = heatCanvas.height;
+    const img = heatCtx.createImageData(w,h);
+    for(let y=0;y<h;y++){
+        for(let x=0;x<w;x++){
+            const sugar = x/w;
+            const milk = 1 - y/h;
+            const res = forward(sugar,milk);
+            const v = res.out;
+            const idx = (y*w + x)*4;
+            img.data[idx] = 255;
+            img.data[idx+1] = Math.floor(255*(1-v));
+            img.data[idx+2] = Math.floor(255*(1-v));
+            img.data[idx+3] = 255;
+        }
+    }
+    heatCtx.putImageData(img,0,0);
+    // 画训练样本黑点
+    heatCtx.fillStyle="#000";
+    for(let d of dataset){
+        let sx = d[0] * w;
+        let sy = (1-d[1]) * h;
+        heatCtx.beginPath();
+        heatCtx.arc(sx,sy,4,0,Math.PI*2);
+        heatCtx.fill();
+    }
+}
+
+// W1热力图 4行2列
+function drawW1(){
+    w1Ctx.clearRect(0,0,w1Canvas.width,w1Canvas.height);
+    const cellW = w1Canvas.width / 2;
+    const cellH = w1Canvas.height / 4;
+    for(let r=0;r<4;r++){
+        for(let c=0;c<2;c++){
+            let val = W1[r][c];
+            let color = val>0 ? `rgb(255,${200-200*Math.abs(val)},${200-200*Math.abs(val)})` : `rgb(${200-200*Math.abs(val)},${200-200*Math.abs(val)},255)`;
+            w1Ctx.fillStyle = color;
+            w1Ctx.fillRect(c*cellW, r*cellH, cellW-2, cellH-2);
+        }
+    }
+}
+
+// W2热力图 一行4个
+function drawW2(){
+    w2Ctx.clearRect(0,0,w2Canvas.width,w2Canvas.height);
+    const cellW = w2Canvas.width / 4;
+    const cellH = w2Canvas.height;
+    for(let c=0;c<4;c++){
+        let val = W2[c];
+        let color = val>0 ? `rgb(255,${200-200*Math.abs(val)},${200-200*Math.abs(val)})` : `rgb(${200-200*Math.abs(val)},${200-200*Math.abs(val)},255)`;
+        w2Ctx.fillStyle = color;
+        w2Ctx.fillRect(c*cellW, 0, cellW-2, cellH-2);
+    }
+}
+
+function clearAllCanvas(){
+    lossCtx.clearRect(0,0,lossCanvas.width,lossCanvas.height);
+    heatCtx.clearRect(0,0,heatCanvas.width,heatCanvas.height);
+    w1Ctx.clearRect(0,0,w1Canvas.width,w1Canvas.height);
+    w2Ctx.clearRect(0,0,w2Canvas.width,w2Canvas.height);
+}
+
+function runPredict(){
+    if(!trained) return;
+    const s = parseFloat(sugarSlider.value);
+    const m = parseFloat(milkSlider.value);
+    const res = forward(s,m);
+    predText.innerText = res.out.toFixed(3);
+}
+
+// 滑块联动
+sugarSlider.oninput = ()=>{
+    sugarVal.innerText = parseFloat(sugarSlider.value).toFixed(2);
+    runPredict();
+}
+milkSlider.oninput = ()=>{
+    milkVal.innerText = parseFloat(milkSlider.value).toFixed(2);
+    runPredict();
+}
+
+trainBtn.onclick = train;
+resetBtn.onclick = initNet;
+
+initNet();
+</script>
+</body>
+</html>
