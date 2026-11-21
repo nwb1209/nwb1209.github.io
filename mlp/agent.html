@@ -1,192 +1,45 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>MLP奶茶甜度预测｜完整版参数可视化</title>
-<style>
-*{box-sizing:border-box;font-family:system-ui}
-body{padding:20px;max-width:1100px;margin:0 auto}
-h2{color:#222}
-.info{background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:16px;line-height:1.6}
-.ctrl{background:#f6f7f9;padding:12px;border-radius:8px;margin-bottom:16px;line-height:1.8}
-button{padding:7px 14px;background:#2b78e4;color:#fff;border:none;border-radius:4px;cursor:pointer;margin:0 4px}
-#resetBtn{background:#dd4444}
-input[type="range"]{width:200px;margin:0 8px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card{border:1px solid #ccc;padding:12px;border-radius:8px}
-canvas{width:100%;height:220px;background:#fafafa}
-.paramBox{background:#f4f4f4;padding:10px;border-radius:6px;margin-top:10px;font-size:14px;max-height:160px;overflow-y:auto}
-.tip{font-size:13px;color:#666}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent使用记录</title>
+    <style>
+        body{font-family:system-ui;padding:20px;max-width:900px;margin:0 auto;background:#f5f7fa}
+        .card{background:white;border-radius:12px;padding:20px;margin:15px 0;box-shadow:0 2px 8px #00000015}
+        .btn{padding:10px 18px;border:none;background:#2563eb;color:white;border-radius:8px;cursor:pointer;margin:5px}
+        .btn:hover{background:#1d4ed8}
+        .content{margin-top:15px;display:none}
+        .active{display:block}
+    </style>
 </head>
 <body>
-<h2>MLP 生活实例：奶茶甜度预测（完整版）</h2>
-<div class="info">
-<b>任务说明：</b>输入【糖量、奶量】，MLP学习二者和甜度的非线性关系<br>
-<b>网络结构：</b>输入层2 → 隐藏层4神经元（Sigmoid） → 输出层1（甜度0~1）<br>
-<b>训练方式：</b>梯度下降 + 反向传播；损失：均方误差MSE；回归任务
-</div>
-
-<div class="ctrl">
-  <button onclick="startTrain()">开始训练</button>
-  <button id="resetBtn" onclick="resetAll()">重置模型</button>
-  <br>
-  糖量：<input type="range" id="sugar" min="0" max="1" step="0.01" value="0.5" oninput="predictNow()">
-  <span id="sugarVal">0.50</span>
-  <br>
-  奶量：<input type="range" id="milk" min="0" max="1" step="0.01" value="0.5" oninput="predictNow()">
-  <span id="milkVal">0.50</span>
-  <br>
-  🍬 预测甜度：<span id="res">等待训练</span>（0=不甜，1=非常甜）
-  <br>
-  <span class="tip">热力图上黑色圆点是训练样本</span>
-</div>
-
-<div class="grid">
-  <div class="card">
-    <div>Loss下降曲线</div>
-    <canvas id="lossCanvas" width="480" height="220"></canvas>
-  </div>
-  <div class="card">
-    <div>甜度热力图（横轴：糖量｜纵轴：奶量）</div>
-    <canvas id="heatCanvas" width="480" height="220"></canvas>
-  </div>
-  <div class="card">
-    <div>W1 权重热力图（输入→隐藏层）</div>
-    <canvas id="w1Canvas" width="480" height="220"></canvas>
-  </div>
-  <div class="card">
-    <div>W2 权重热力图（隐藏→输出层）</div>
-    <canvas id="w2Canvas" width="480" height="220"></canvas>
-  </div>
-</div>
-
-<div class="paramBox">
-  <b>训练参数实时更新（W1、b1、W2、b2）：</b>
-  <div id="paramText">未开始训练</div>
-</div>
-
+    <h1>Agent使用记录</h1>
+    <div class="card">
+        <button class="btn" onclick="switchTab(0)">豆包</button>
+        <button class="btn" onclick="switchTab(1)">ChatGPT</button>
+        <button class="btn" onclick="switchTab(2)">文心一言</button>
+        <div id="c0" class="content active">
+            <h3>豆包</h3>
+            <p>用途：线性代数解题、Python代码编写、网页开发、作业思路讲解</p>
+            <p>效果：快速理解知识点，生成可运行代码，帮我调试GitHub Pages网页</p>
+        </div>
+        <div id="c1" class="content">
+            <h3>ChatGPT</h3>
+            <p>用途：英文资料阅读、算法原理深入理解</p>
+            <p>效果：适合查阅外文相关AI资料，解释复杂模型原理</p>
+        </div>
+        <div id="c2" class="content">
+            <h3>文心一言</h3>
+            <p>用途：文案撰写、报告构思</p>
+            <p>效果：快速生成课程报告框架，辅助整理作业文字说明</p>
+        </div>
+    </div>
 <script>
-// 训练数据集：[糖量,奶量] → 甜度 0~1
-const trainData = [
-  {x:[0.1,0.8], y:0.10},
-  {x:[0.9,0.2], y:0.95},
-  {x:[0.8,0.7], y:0.45},
-  {x:[0.2,0.1], y:0.30},
-  {x:[0.9,0.9], y:0.35},
-  {x:[0.5,0.2], y:0.70},
-  {x:[0.3,0.6], y:0.25},
-  {x:[0.7,0.3], y:0.82},
-]
-let W1,b1,W2,b2
-let lossList = []
-const hiddenNum = 4
-const lr = 0.4
-const totalEpoch = 4000
-
-// 激活函数
-function sigmoid(x){ return 1/(1+Math.exp(-x)) }
-function dsigmoid(y){ return y*(1-y) }
-
-// 初始化权重
-function init(){
-  W1 = Array(2).fill().map(()=>Array(hiddenNum).fill().map(()=>Math.random()*2-1))
-  b1 = Array(hiddenNum).fill().map(()=>Math.random()*2-1)
-  W2 = Array(hiddenNum).fill().map(()=>[Math.random()*2-1])
-  b2 = [Math.random()*2-1]
-  lossList = []
-  document.getElementById('paramText').innerText = "初始化完成，等待训练"
-}
-
-// 前向传播
-function forward(x){
-  let z1 = [
-    x[0]*W1[0][0] + x[1]*W1[1][0] + b1[0],
-    x[0]*W1[0][1] + x[1]*W1[1][1] + b1[1],
-    x[0]*W1[0][2] + x[1]*W1[1][2] + b1[2],
-    x[0]*W1[0][3] + x[1]*W1[1][3] + b1[3]
-  ]
-  let a1 = z1.map(sigmoid)
-  let z2 = a1[0]*W2[0][0] + a1[1]*W2[1][0] + a1[2]*W2[2][0] + a1[3]*W2[3][0] + b2[0]
-  let sweet = sigmoid(z2)
-  return {a1, sweet, z2}
-}
-
-// 训练
-async function startTrain(){
-  init()
-  for(let e=0;e<totalEpoch;e++){
-    let totalLoss = 0
-    for(let item of trainData){
-      let x = item.x
-      let yTrue = item.y
-      let {a1, sweet, z2} = forward(x)
-      let err = sweet - yTrue
-     <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>Agent使用记录</title>
-<style>
-*{box-sizing:border-box;font-family:system-ui}
-body{max-width:780px;margin:40px auto;padding:0 20px;line-height:1.8}
-h2{text-align:center;color:#222}
-.btn-group{display:flex;gap:10px;margin:25px 0;flex-wrap:wrap}
-button{padding:9px 16px;border:none;border-radius:6px;background:#e8edf6;color:#222;font-size:16px;cursor:pointer}
-button.active{background:#2b78e4;color:#fff}
-.card{background:#f4f7fb;padding:20px;border-radius:12px;display:none}
-.card.show{display:block}
-.back{display:inline-block;margin-top:25px;color:#2b78e4;font-size:17px;text-decoration:none}
-</style>
-</head>
-<body>
-<h2>我的Agent使用记录</h2>
-
-<div class="btn-group">
-  <button onclick="switchAgent('doubao')" class="active">豆包Agent</button>
-  <button onclick="switchAgent('draw')">绘图Agent</button>
-</div>
-
-<div id="doubao" class="card show">
-  <h3>豆包 Agent</h3>
-  <p><strong>使用场景：</strong>课程学习、代码调试、数学解题、作业辅助</p>
-  <p><strong>做的事情：</strong></p>
-  <ul>
-    <li>Python代码辅导：循环、字典、列表、MLP多层感知机代码编写、排错</li>
-    <li>高等数学：极限、无穷小、逆序数、矩阵、极值等知识点讲解和习题解答</li>
-    <li>网页代码编写：制作GitHub个人网站、MLP可视化页面，排查404路径问题</li>
-    <li>英语作文模板、知识点总结梳理</li>
-  </ul>
-  <p><strong>取得效果：</strong>快速理解难懂知识点，定位代码报错，节省调试时间；拿到可直接运行的演示代码，高效完成课程作业。</p>
-</div>
-
-<div id="draw" class="card">
-  <h3>绘图类Agent</h3>
-  <p><strong>使用场景：</strong>图片编辑、效果预览</p>
-  <p><strong>做的事情：</strong></p>
-  <ul>
-    <li>证件照底色更换</li>
-    <li>发型虚拟预览</li>
-    <li>图片裁剪、局部修改</li>
-  </ul>
-  <p><strong>取得效果：</strong>无需专业修图软件，快速生成预览效果，方便对比选择。</p>
-</div>
-
-<a class="back" href="../index.html">← 返回首页</a>
-
-<script>
-function switchAgent(id) {
-  // 隐藏所有卡片
-  document.querySelectorAll('.card').forEach(card=>{
-    card.classList.remove('show')
-  })
-  // 取消所有按钮高亮
-  document.querySelectorAll('button').forEach(btn=>{
-    btn.classList.remove('active')
-  })
-  // 显示选中卡片，高亮当前按钮
-  document.getElementById(id).classList.add('show')
-  event.target.classList.add('active')
+function switchTab(idx){
+    const all = document.querySelectorAll('.content');
+    all.forEach(item=>item.classList.remove('active'))
+    document.getElementById('c'+idx).classList.add('active')
 }
 </script>
 </body>
