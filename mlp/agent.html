@@ -1,44 +1,77 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent使用记录</title>
-    <style>
-        body{font-family:system-ui;padding:20px;max-width:900px;margin:0 auto;background:#f5f7fa}
-        .card{background:white;border-radius:12px;padding:20px;margin:15px 0;box-shadow:0 2px 8px #00000015}
-        .btn{padding:10px 18px;border:none;background:#2563eb;color:white;border-radius:8px;cursor:pointer;margin:5px}
-        .btn:hover{background:#1d4ed8}
-        .content{margin-top:15px;display:none}
-        .active{display:block}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent的使用及收获 | 第一次作业</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui, sans-serif;}
+body{padding:20px;max-width:1100px;margin:0 auto;background:#f7f8fa;line-height:1.7;}
+.title{background:#ffe699;padding:12px 16px;border-radius:8px;font-size:20px;font-weight:bold;margin-bottom:16px;}
+.info-box{background:#fff;border:1px solid #ddd;padding:16px;border-radius:8px;margin-bottom:16px;}
+.btn-group{margin:12px 0;}
+button{padding:9px 18px;border:none;border-radius:6px;color:#fff;font-size:15px;cursor:pointer;margin:4px;}
+#btn1{background:#2b78e4;}
+#btn2{background:#22aa77;}
+#btn3{background:#9955dd;}
+.content-card{background:#ffffff;border:1px solid #ddd;border-radius:8px;padding:18px;display:none;}
+.content-card.active{display:block;}
+h3{margin-top:0;}
+</style>
 </head>
 <body>
-    <h1>Agent使用记录</h1>
-    <div class="card">
-        <button class="btn" onclick="switchTab(0)">豆包</button>
-        <button class="btn" onclick="switchTab(1)">ChatGPT</button>
-        <button class="btn" onclick="switchTab(2)">文心一言</button>
-        <div id="c0" class="content active">
-            <h3>豆包</h3>
-            <p>用途：线性代数解题、Python代码编写、网页开发、作业思路讲解</p>
-            <p>效果：快速理解知识点，生成可运行代码，帮我调试GitHub Pages网页</p>
-        </div>
-        <div id="c1" class="content">
-            <h3>ChatGPT</h3>
-            <p>用途：英文资料阅读、算法原理深入理解</p>
-            <p>效果：适合查阅外文相关AI资料，解释复杂模型原理</p>
-        </div>
-        <div id="c2" class="content">
-            <h3>文心一言</h3>
-            <p>用途：文案撰写、报告构思</p>
-            <p>效果：快速生成课程报告框架，辅助整理作业文字说明</p>
-        </div>
-    </div>
+<div class="title">第一次作业：AI Agent 使用记录</div>
+<div class="info-box">
+说明：本页面记录我在人工智能课程学习、作业开发过程中，使用AI Agent的场景、用途与实际效果。所有由Agent生成的内容，我均阅读、核对、理解原理，并自主修改调试完成。
+</div>
+
+<div class="btn-group">
+<button id="btn1" onclick="switchTab(0)">豆包</button>
+<button id="btn2" onclick="switchTab(1)">ChatGPT</button>
+<button id="btn3" onclick="switchTab(2)">文心一言</button>
+</div>
+
+<div class="content-card active" id="c0">
+<h3>豆包</h3>
+<p><strong>使用场景：</strong>线性代数习题答疑、网页可视化代码开发、MLP多层感知机作业实现、GitHub Pages网站部署排错</p>
+<p><strong>用来做的事情：</strong></p>
+<ul>
+<li>讲解线性代数知识点：行列式、逆矩阵、向量线性表示、线性方程组通解等，拆解做题步骤；</li>
+<li>编写MLP可视化网页代码，实现训练按钮、损失曲线、热力图、权重可视化、滑块交互；</li>
+<li>协助搭建个人作业网站，编写导航页，排查404、路径错误、按钮失效、后缀名等网页bug；</li>
+<li>解释反向传播、Sigmoid激活函数、梯度下降等MLP基础原理。</li>
+</ul>
+<p><strong>取得效果：</strong>快速理解课堂难点，拿到可运行的基础代码，节省大量调试时间，顺利完成两次课程作业，搭建可在线访问的交互式作业网站。</p>
+</div>
+
+<div class="content-card" id="c1">
+<h3>ChatGPT</h3>
+<p><strong>使用场景：</strong>AI外文资料阅读、神经网络原理深度理解、代码逻辑解读</p>
+<p><strong>用来做的事情：</strong></p>
+<ul>
+<li>阅读英文AI入门资料，翻译专业术语；</li>
+<li>对比理解感知机、多层神经网络的底层逻辑；</li>
+<li>分析不同激活函数Sigmoid、ReLU的区别与适用场景。</li>
+</ul>
+<p><strong>取得效果：</strong>拓宽学习资料来源，看懂英文技术文档，对MLP模型的理解更加全面。</p>
+</div>
+
+<div class="content-card" id="c2">
+<h3>文心一言</h3>
+<p><strong>使用场景：</strong>课程文字材料撰写、作业说明文字润色、报告框架构思</p>
+<p><strong>用来做的事情：</strong></p>
+<ul>
+<li>撰写Agent使用说明、作业描述文字；</li>
+<li>整理课程学习总结，梳理实验思路；</li>
+<li>润色页面介绍文本，让作业描述更加规范正式。</li>
+</ul>
+<p><strong>取得效果：</strong>快速梳理文字框架，规范作业描述，方便老师看懂实验内容。</p>
+</div>
+
 <script>
 function switchTab(idx){
-    const all = document.querySelectorAll('.content');
-    all.forEach(item=>item.classList.remove('active'))
+    const allCards = document.querySelectorAll('.content-card');
+    allCards.forEach(card=>card.classList.remove('active'))
     document.getElementById('c'+idx).classList.add('active')
 }
 </script>
